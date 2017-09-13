@@ -58,14 +58,14 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
     TSDebug(PLUGIN_NAME, "[flv_transform_handler] input_vio avail is %" PRId64 "", avail);
 
     TSIOBufferCopy(ftc->res_buffer, input_reader, avail, 0);
-//    TSIOBufferReaderConsume(TSVIOReaderGet(input_vio), avail);
-//    TSVIONDoneSet(input_vio, TSVIONDoneGet(input_vio) + avail);
+    TSIOBufferReaderConsume(TSVIOReaderGet(input_vio), avail);
+    TSVIONDoneSet(input_vio, TSVIONDoneGet(input_vio) + avail);
     //TODO
-//    towrite = TSVIONTodoGet(input_vio);
+    towrite = TSVIONTodoGet(input_vio);
     TSDebug(PLUGIN_NAME, "[flv_transform_handler] parse_over=%d",ftc->parse_over);
     if (!ftc->parse_over) {
         TSDebug(PLUGIN_NAME, "[flv_transform_handler] in parse_over towrite-avail=%ld",(towrite-avail));
-        ret = ftag->process_tag(ftc->res_reader, (towrite-avail) <= 0);
+        ret = ftag->process_tag(ftc->res_reader, towrite <= 0);
         TSDebug(PLUGIN_NAME, "[flv_transform_handler] ret=%d",ret);
         if (ret == 0) {
             goto LDone;
@@ -96,6 +96,7 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
 
     res_avail = TSIOBufferReaderAvail(ftc->res_reader);
     donewrite = TSVIONDoneGet(input_vio);
+    donewrite = donewrite - avail;
     TSDebug(PLUGIN_NAME, "[flv_transform_handler] donewrite=%ld, res_avail=%ld", donewrite,res_avail);
 
     if (ftc->parse_over && ftag->real_end_keyframe_positions > 0 && !ftc->dup_end) {
@@ -146,10 +147,7 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
     }
 
 
-
     LDone:
-    TSIOBufferReaderConsume(TSVIOReaderGet(input_vio), avail);
-    TSVIONDoneSet(input_vio, TSVIONDoneGet(input_vio) + avail);
 
     TSDebug(PLUGIN_NAME, "LDone todo=%ld, Done Get=%ld, total=%ld",TSVIONTodoGet(input_vio),
             TSVIONDoneGet(ftc->output.vio), ftc->total);

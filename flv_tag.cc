@@ -561,9 +561,9 @@ int FlvTag::update_flv_meta_data() {
     TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_audio_size=%lf",this->start_duration_audio_size);
     if(this->start <= 0 && this->end > 0) {
         TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start <= 0 && this->end > 0");
-        this->lastkeyframelocation;
-        this->lastkeyframetimestamp;
-        this->lasttimestamp;
+//        this->lastkeyframelocation;
+//        this->lastkeyframetimestamp;
+//        this->lasttimestamp;
         this->duration = this->lastkeyframetimestamp;
         this->filesize = this->lastkeyframelocation;
         //keyframes 在遍历过程中删除

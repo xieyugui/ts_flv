@@ -68,10 +68,9 @@ class FlvTag
 public:
 	FlvTag() : tag_buffer(NULL), tag_reader(NULL), dup_reader(NULL), meta_buffer(NULL), meta_reader(NULL),
                copy_meta_buffer(NULL), copy_meta_reader(NULL),modify_meta_buffer(NULL), modify_meta_reader(NULL),
-			   head_buffer(NULL), head_reader(NULL),flv_buffer(NULL),flv_reader(NULL),new_flv_buffer(NULL),
-               new_flv_reader(NULL),tag_pos(0),cl(0),content_length(0), start_dup_size(0),start_duration_file_size(0),
-               start_duration_time(0),start_duration_video_size(0),start_duration_audio_size(0),start(0),
-               end(0),haskeyframe(false),start_keyframe_len(0),start_keyframe_positions(0),start_keyframe_times(0),
+			   head_buffer(NULL), head_reader(NULL),tag_pos(0),cl(0),content_length(0), start_dup_size(0),
+			   start_duration_file_size(0),start_duration_time(0),start_duration_video_size(0),start_duration_audio_size(0),
+			   start(0),end(0),haskeyframe(false),start_keyframe_len(0),start_keyframe_positions(0),start_keyframe_times(0),
                end_keyframe_len(0),end_keyframe_positions(0),end_keyframe_times(0),real_end_keyframe_positions(0),
                duration(0),filesize(0),videosize(0),audiosize(0),datasize(0),lastkeyframelocation(0),lastkeyframetimestamp(0),
                lasttimestamp(0),delete_meta_size(0)
@@ -93,12 +92,6 @@ public:
 
 		head_buffer = TSIOBufferCreate();
 		head_reader = TSIOBufferReaderAlloc(head_buffer);
-
-		flv_buffer = TSIOBufferCreate();
-		flv_reader = TSIOBufferReaderAlloc(flv_buffer);
-
-		new_flv_buffer = TSIOBufferCreate();
-		new_flv_reader = TSIOBufferReaderAlloc(new_flv_buffer);
 
 		current_handler = &FlvTag::process_header;
 	}
@@ -159,27 +152,8 @@ public:
             TSIOBufferDestroy(head_buffer);
             head_buffer = NULL;
         }
-
-        if (flv_reader) {
-            TSIOBufferReaderFree(flv_reader);
-            flv_reader = NULL;
-        }
-
-        if (flv_buffer) {
-            TSIOBufferDestroy(flv_buffer);
-            flv_buffer = NULL;
-        }
-
-        if (new_flv_reader) {
-            TSIOBufferReaderFree(new_flv_reader);
-            new_flv_reader = NULL;
-        }
-
-        if (new_flv_buffer) {
-            TSIOBufferDestroy(new_flv_buffer);
-            new_flv_buffer = NULL;
-        }
 	}
+
 
 	int process_tag(TSIOBufferReader reader, bool complete);
 	int64_t write_out(TSIOBuffer buffer, TSIOBuffer res_buffer);
@@ -197,6 +171,8 @@ public:
 
 	int update_flv_meta_data();
 	int flv_read_metadata(byte *stream,amf_data ** name, amf_data ** data, size_t maxbytes);
+    void clear_copy_meta_buffer();
+    void create_copy_meta_buffer();
 
 
 
@@ -216,12 +192,6 @@ public:
 
 	TSIOBuffer modify_meta_buffer;
 	TSIOBufferReader modify_meta_reader;
-
-	TSIOBuffer flv_buffer;
-	TSIOBufferReader flv_reader;
-
-	TSIOBuffer new_flv_buffer;
-	TSIOBufferReader new_flv_reader;
 
 	FTHandler current_handler;
 
@@ -268,6 +238,8 @@ public:
     double lastkeyframetimestamp; //　最后一个关键帧时间戳　双精度
     double lasttimestamp; //最后一个时间戳　　　　双精度
 
+    //如果为Number(double), 第一个字节为数据类型，如果为double ,后面的8bytes为Double类型的数据
+    //所以删除一个keyframe元素的size 为9
     size_t delete_meta_size; //删除的keyframes元素大小
 };
 

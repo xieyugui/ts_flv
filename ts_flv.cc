@@ -155,7 +155,7 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
     TSDebug(PLUGIN_NAME, "write_down =%d", write_down);
     if (write_down)
         TSVIOReenable(ftc->output.vio);
-
+    TSDebug(PLUGIN_NAME, "output Done Get=%ld",TSVIONDoneGet(ftc->output.vio));
     if (TSVIONTodoGet(input_vio) > 0) {
         TSDebug(PLUGIN_NAME, "TSVIONTodoGet   xxxxxx");
         if (towrite > 0) {

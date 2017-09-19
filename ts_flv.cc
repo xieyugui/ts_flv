@@ -76,20 +76,10 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
         ftc->output.reader = TSIOBufferReaderAlloc(ftc->output.buffer);
         ftc->output.vio = TSVConnWrite(output_conn, contp, ftc->output.reader, ftag->content_length);
 
-        if(ret < 0) {
-            dup_avail = TSIOBufferReaderAvail(ftag->dup_reader);
-            if (dup_avail > 0) {
-                TSIOBufferCopy(ftc->output.buffer, ftag->dup_reader, dup_avail, 0);
-                TSIOBufferReaderConsume(ftag->dup_reader, dup_avail);
-                ftc->total += dup_avail;
-                write_down = true;
-            }
-        } else {
-            tag_avail = ftag->write_out(ftc->output.buffer, ftc->res_buffer);
-            if (tag_avail > 0) {
-                ftc->total += tag_avail;
-                write_down = true;
-            }
+        tag_avail = ftag->write_out(ftc->output.buffer, ftc->res_buffer);
+        if (tag_avail > 0) {
+            ftc->total += tag_avail;
+            write_down = true;
         }
     }
     TSDebug(PLUGIN_NAME, "[flv_transform_handler] out parse_over");

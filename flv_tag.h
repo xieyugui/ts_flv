@@ -67,7 +67,7 @@ typedef int (FlvTag::*FTHandler) ();
 class FlvTag
 {
 public:
-	FlvTag() : tag_buffer(NULL), tag_reader(NULL), dup_reader(NULL), meta_buffer(NULL), meta_reader(NULL),meta_buffer_start_tag(NULL),
+	FlvTag() : tag_buffer(NULL), tag_reader(NULL), meta_buffer(NULL), meta_reader(NULL),meta_buffer_start_tag(NULL),
                meta_reader_start_tag(NULL), copy_meta_buffer(NULL), copy_meta_reader(NULL),modify_meta_buffer(NULL), modify_meta_reader(NULL),
 			   head_buffer(NULL), head_reader(NULL),tag_pos(0),cl(0),content_length(0), start_dup_size(0),
 			   start_duration_file_size(0),start_duration_time(0),start_duration_video_size(0),start_duration_audio_size(0),
@@ -80,7 +80,6 @@ public:
 
 		tag_buffer = TSIOBufferCreate();
 		tag_reader = TSIOBufferReaderAlloc(tag_buffer);
-		dup_reader = TSIOBufferReaderAlloc(tag_buffer);
 
 		meta_buffer = TSIOBufferCreate();
 		meta_reader = TSIOBufferReaderAlloc(meta_buffer);
@@ -106,11 +105,6 @@ public:
 			TSIOBufferReaderFree(tag_reader);
 			tag_reader = NULL;
 		}
-
-        if (dup_reader) {
-            TSIOBufferReaderFree(dup_reader);
-            dup_reader = NULL;
-        }
 
 		if (tag_buffer) {
 			TSIOBufferDestroy(tag_buffer);
@@ -191,7 +185,6 @@ public:
 public:
 	TSIOBuffer tag_buffer;
 	TSIOBufferReader tag_reader;
-	TSIOBufferReader    dup_reader;
 
 	TSIOBuffer head_buffer;
 	TSIOBufferReader head_reader;

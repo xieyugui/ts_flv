@@ -20,7 +20,8 @@
 
 const char PLUGIN_NAME[] = "ts_flv";
 
-#define FLV_UI32(x) (int)(((x[0]) << 24) + ((x[1]) << 16) + ((x[2]) << 8) + (x[3])) //将字符串转为整数
+//将字符串转为整数
+#define FLV_UI32(x) (int)(((x[0]) << 24) + ((x[1]) << 16) + ((x[2]) << 8) + (x[3]))
 #define FLV_UI24(x) (int)(((x[0]) << 16) + ((x[1]) << 8) + (x[2]))
 #define FLV_UI16(x) (int)(((x[0]) << 8) + (x[1]))
 #define FLV_UI8(x) (int)((x))
@@ -66,14 +67,14 @@ typedef int (FlvTag::*FTHandler) ();
 class FlvTag
 {
 public:
-	FlvTag() : tag_buffer(NULL), tag_reader(NULL), dup_reader(NULL), meta_buffer(NULL), meta_reader(NULL),
-               copy_meta_buffer(NULL), copy_meta_reader(NULL),modify_meta_buffer(NULL), modify_meta_reader(NULL),
+	FlvTag() : tag_buffer(NULL), tag_reader(NULL), dup_reader(NULL), meta_buffer(NULL), meta_reader(NULL),meta_buffer_start_tag(NULL),
+               meta_reader_start_tag(NULL), copy_meta_buffer(NULL), copy_meta_reader(NULL),modify_meta_buffer(NULL), modify_meta_reader(NULL),
 			   head_buffer(NULL), head_reader(NULL),tag_pos(0),cl(0),content_length(0), start_dup_size(0),
 			   start_duration_file_size(0),start_duration_time(0),start_duration_video_size(0),start_duration_audio_size(0),
 			   start(0),end(0),haskeyframe(false),start_keyframe_len(0),start_keyframe_positions(0),start_keyframe_times(0),
                end_keyframe_len(0),end_keyframe_positions(0),end_keyframe_times(0),real_end_keyframe_positions(0),
                duration(0),filesize(0),videosize(0),audiosize(0),datasize(0),lastkeyframelocation(0),lastkeyframetimestamp(0),
-               lasttimestamp(0),delete_meta_size(0)
+               lasttimestamp(0),delete_meta_size(0),keyframes_len(0),key_found(false)
 
 	{
 
@@ -83,6 +84,9 @@ public:
 
 		meta_buffer = TSIOBufferCreate();
 		meta_reader = TSIOBufferReaderAlloc(meta_buffer);
+
+        meta_buffer_start_tag = TSIOBufferCreate();
+        meta_reader_start_tag = TSIOBufferReaderAlloc(meta_buffer_start_tag);
 
 		copy_meta_buffer = TSIOBufferCreate();
 		copy_meta_reader = TSIOBufferReaderAlloc(copy_meta_buffer);
@@ -122,6 +126,16 @@ public:
 			TSIOBufferDestroy(meta_buffer);
 			meta_buffer = NULL;
 		}
+
+        if (meta_reader_start_tag) {
+            TSIOBufferReaderFree(meta_reader_start_tag);
+            meta_reader_start_tag = NULL;
+        }
+
+        if (meta_buffer_start_tag) {
+            TSIOBufferDestroy(meta_buffer_start_tag);
+            meta_buffer_start_tag = NULL;
+        }
 
 		if (copy_meta_reader) {
 			TSIOBufferReaderFree(copy_meta_reader);
@@ -171,8 +185,6 @@ public:
 
 	int update_flv_meta_data();
 	int flv_read_metadata(byte *stream,amf_data ** name, amf_data ** data, size_t maxbytes);
-    void clear_copy_meta_buffer();
-    void create_copy_meta_buffer();
 
 
 
@@ -186,6 +198,9 @@ public:
 
 	TSIOBuffer meta_buffer;
 	TSIOBufferReader meta_reader;
+
+    TSIOBuffer meta_buffer_start_tag;
+    TSIOBufferReader meta_reader_start_tag;
 
 	TSIOBuffer copy_meta_buffer;
 	TSIOBufferReader copy_meta_reader;
@@ -241,6 +256,8 @@ public:
     //如果为Number(double), 第一个字节为数据类型，如果为double ,后面的8bytes为Double类型的数据
     //所以删除一个keyframe元素的size 为9
     size_t delete_meta_size; //删除的keyframes元素大小
+	uint32_t keyframes_len;// 关键帧原始大小
+	bool                key_found;
 };
 
 #endif /* __FLV_TAG_H__ */

@@ -149,13 +149,13 @@ flv_transform_handler(TSCont contp, FlvContext *fc)
 
     LDone:
 
-    TSDebug(PLUGIN_NAME, "LDone todo=%ld, Done Get=%ld, total=%ld",TSVIONTodoGet(input_vio),
-            TSVIONDoneGet(ftc->output.vio), ftc->total);
+    TSDebug(PLUGIN_NAME, "LDone todo=%ld, total=%ld",TSVIONTodoGet(input_vio),ftc->total);
 
     TSDebug(PLUGIN_NAME, "write_down =%d", write_down);
-    if (write_down)
+    if (write_down) {
         TSVIOReenable(ftc->output.vio);
-    TSDebug(PLUGIN_NAME, "output Done Get=%ld",TSVIONDoneGet(ftc->output.vio));
+        TSDebug(PLUGIN_NAME, "output Done Get=%ld", TSVIONDoneGet(ftc->output.vio));
+    }
     if (TSVIONTodoGet(input_vio) > 0) {
         TSDebug(PLUGIN_NAME, "TSVIONTodoGet   xxxxxx");
         if (towrite > 0) {
@@ -457,7 +457,7 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
     }
 
     TSDebug(PLUGIN_NAME, "TSRemapDoRemap start=%lu, end=%lu", start, end);
-    if (start < 0 || end < 0 || start >= end) {
+    if (start < 0 || end < 0 || (start > 0 && end > 0 && start >= end)) {
         return TSREMAP_NO_REMAP;
     }
 

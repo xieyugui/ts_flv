@@ -50,7 +50,7 @@ public:
 class FlvTransformContext
 {
 public:
-    FlvTransformContext(uint16_t st,uint64_t e, uint64_t n) : total(0), parse_over(false), dup_end(false)
+    FlvTransformContext(uint64_t st,uint64_t e, uint64_t n) : total(0), parse_over(false), dup_end(false)
     {
         res_buffer = TSIOBufferCreate();
         res_reader = TSIOBufferReaderAlloc(res_buffer);

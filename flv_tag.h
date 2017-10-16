@@ -68,7 +68,7 @@ class FlvTag
 {
 public:
 	FlvTag() : tag_buffer(NULL), tag_reader(NULL), head_buffer(NULL), head_reader(NULL),meta_buffer(NULL), meta_reader(NULL),
-               meta_buffer_start_tag(NULL),meta_reader_start_tag(NULL), copy_meta_buffer(NULL), copy_meta_reader(NULL),
+               copy_meta_buffer(NULL), copy_meta_reader(NULL),
                modify_meta_buffer(NULL),modify_meta_reader(NULL),tag_pos(0),cl(0),content_length(0), start_dup_size(0),
 			   start_duration_file_size(0),start_duration_time(0),start_duration_video_size(0),start_duration_audio_size(0),
 			   start(0),end(0),haskeyframe(false),start_keyframe_len(0),start_keyframe_positions(0),start_keyframe_times(0),
@@ -86,9 +86,6 @@ public:
 
 		meta_buffer = TSIOBufferCreate();
 		meta_reader = TSIOBufferReaderAlloc(meta_buffer);
-
-        meta_buffer_start_tag = TSIOBufferCreate();
-        meta_reader_start_tag = TSIOBufferReaderAlloc(meta_buffer_start_tag);
 
 		copy_meta_buffer = TSIOBufferCreate();
 		copy_meta_reader = TSIOBufferReaderAlloc(copy_meta_buffer);
@@ -130,16 +127,6 @@ public:
 			TSIOBufferDestroy(meta_buffer);
 			meta_buffer = NULL;
 		}
-
-        if (meta_reader_start_tag) {
-            TSIOBufferReaderFree(meta_reader_start_tag);
-            meta_reader_start_tag = NULL;
-        }
-
-        if (meta_buffer_start_tag) {
-            TSIOBufferDestroy(meta_buffer_start_tag);
-            meta_buffer_start_tag = NULL;
-        }
 
 		if (copy_meta_reader) {
 			TSIOBufferReaderFree(copy_meta_reader);
@@ -192,9 +179,6 @@ public:
 
 	TSIOBuffer meta_buffer;
 	TSIOBufferReader meta_reader;
-
-    TSIOBuffer meta_buffer_start_tag;
-    TSIOBufferReader meta_reader_start_tag;
 
 	TSIOBuffer copy_meta_buffer;
 	TSIOBufferReader copy_meta_reader;

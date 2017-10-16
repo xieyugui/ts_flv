@@ -35,11 +35,11 @@ int FlvTag::process_tag(TSIOBufferReader readerp, bool complete) {
 
 	avail = TSIOBufferReaderAvail(readerp);
 	TSIOBufferCopy(tag_buffer, readerp, avail, 0);
-//    TSDebug(PLUGIN_NAME, "[process_tag] readerp avail=%ld",avail);
+    TSDebug(PLUGIN_NAME, "[process_tag] readerp avail=%ld",avail);
 	TSIOBufferReaderConsume(readerp, avail);
 
 	rc = (this->*current_handler)();
-//    TSDebug(PLUGIN_NAME, "[process_tag] rc=%d",rc);
+    TSDebug(PLUGIN_NAME, "[process_tag] rc=%d",rc);
 	if (rc == 0 && complete) {
 		rc = -1;
 	}
@@ -54,7 +54,6 @@ int FlvTag::process_tag(TSIOBufferReader readerp, bool complete) {
             this->content_length = this->end - this->start_duration_file_size;
         }
 
-//        this->content_length = this->cl;
 		TSDebug(PLUGIN_NAME, "[process_tag] content_length = %ld", content_length);
 	}
 
@@ -67,7 +66,7 @@ int FlvTag::process_tag(TSIOBufferReader readerp, bool complete) {
 }
 
 int64_t FlvTag::write_out(TSIOBuffer buffer, TSIOBuffer res_buffer) {
-	int64_t head_avail, modify_meta_avail, tag_avail,meta_avail_start_tag;
+	int64_t head_avail, modify_meta_avail, tag_avail;
 
 	head_avail = TSIOBufferReaderAvail(head_reader);
 
@@ -83,14 +82,8 @@ int64_t FlvTag::write_out(TSIOBuffer buffer, TSIOBuffer res_buffer) {
         TSIOBufferReaderConsume(modify_meta_reader, modify_meta_avail);
     }
 
-	meta_avail_start_tag = TSIOBufferReaderAvail(meta_reader_start_tag);
 
-	if (meta_avail_start_tag > 0) {
-		TSIOBufferCopy(buffer, meta_reader_start_tag, meta_avail_start_tag, 0);
-		TSIOBufferReaderConsume(meta_reader_start_tag, meta_avail_start_tag);
-	}
-
-//    TSDebug(PLUGIN_NAME, "[write_out] head_avail=%ld, modify_meta_avail=%ld, meta_avail_start_tag=%ld",head_avail, modify_meta_avail,meta_avail_start_tag);
+    TSDebug(PLUGIN_NAME, "[write_out] head_avail=%ld, modify_meta_avail=%ld",head_avail, modify_meta_avail);
 
 	//将剩余的拷贝回去
 	tag_avail = TSIOBufferReaderAvail(tag_reader);
@@ -98,9 +91,9 @@ int64_t FlvTag::write_out(TSIOBuffer buffer, TSIOBuffer res_buffer) {
 		TSIOBufferCopy(res_buffer, tag_reader, tag_avail, 0);
 		TSIOBufferReaderConsume(tag_reader, tag_avail);
 	}
-//	TSDebug(PLUGIN_NAME, "[write_out] tag_avail=%ld",tag_avail);
+	TSDebug(PLUGIN_NAME, "[write_out] tag_avail=%ld",tag_avail);
 
-	return head_avail + modify_meta_avail + meta_avail_start_tag;
+	return head_avail + modify_meta_avail;
 }
 
 
@@ -140,15 +133,17 @@ int FlvTag::process_meta_body() {
 	uint64_t avail, sz;
 	uint32 body_length,timestamp;
 	size_t flv_tag_length = get_flv_tag_size();
+    char        buf[12];
 
 	avail = TSIOBufferReaderAvail(tag_reader);
 
     do {
         flv_tag tag;
 
-        if (avail < flv_tag_length) // find video key frame
+        if (avail < flv_tag_length + 1) // find video key frame
             return 0;
         flv_read_flv_tag(tag_reader, &tag);
+        IOBufferReaderCopy(tag_reader, buf, flv_tag_length + 1);
 
 		body_length = flv_tag_get_body_length(tag);
 
@@ -156,18 +151,20 @@ int FlvTag::process_meta_body() {
 
 		if (avail < sz)     // insure the whole tag
 			return 0;
-        if (tag.type == FLV_TAG_TYPE_META) {
-			TSIOBufferCopy(meta_buffer, tag_reader, sz, 0);
-        }else {
-			timestamp = flv_tag_get_timestamp(tag);
 
-			if(timestamp <=0 && !key_found) {
-				if( tag.type == FLV_TAG_TYPE_AUDIO)
-					key_found = true;
-			}
-			TSIOBufferCopy(meta_buffer_start_tag, tag_reader, sz, 0);
-		}
+        timestamp = flv_tag_get_timestamp(tag);
 
+        if (timestamp != 0)
+            goto process_end;
+
+        if (tag.type == FLV_TAG_TYPE_VIDEO && (((uint8_t)buf[11]) >> 4) == 1) {
+            if (!key_found) {
+                key_found = true;
+            } else {
+                goto process_end;
+            }
+        }
+        TSIOBufferCopy(meta_buffer, tag_reader, sz, 0);
         TSIOBufferReaderConsume(tag_reader, sz);
 
         TSDebug(PLUGIN_NAME, "[process_meta_body] sz=%lu, tag_pos=%lu", sz, tag_pos);
@@ -175,14 +172,11 @@ int FlvTag::process_meta_body() {
         tag_pos += sz;
 		avail -= sz;
 
-		if (key_found)
-			goto process_end;
-
     } while(avail > 0);
     return 0;
 
 	process_end:
-//	TSDebug(PLUGIN_NAME, "[process_meta_body] meta_buff=%lu, meta_buffer_start_tag=%lu", TSIOBufferReaderAvail(meta_reader), TSIOBufferReaderAvail(meta_reader_start_tag));
+    TSDebug(PLUGIN_NAME, "[process_meta_body] meta_buff=%lu", TSIOBufferReaderAvail(meta_reader));
 	key_found = false;
 
 	this->current_handler = &FlvTag::parse_meta_body;
@@ -216,7 +210,7 @@ int FlvTag::parse_meta_body() {
 	TSIOBufferReaderConsume(copy_meta_reader, flv_tag_size);
 
 	body_length = flv_tag_get_body_length(tag);
-//	TSDebug(PLUGIN_NAME,"[parse_meta_body] body_length=%u",body_length);
+	TSDebug(PLUGIN_NAME,"[parse_meta_body] body_length=%u",body_length);
 	//body data
 	buf = (byte *)TSmalloc(sizeof(byte) * body_length);
 	memset(buf, 0, body_length);
@@ -425,7 +419,8 @@ int FlvTag::parse_meta_body() {
 											start_keyframe_times = df_time;
 										}
 									} else {
-										break;
+                                        if(end_keyframe_times > 0)
+										    break;
 									}
 									end_keyframe_len += 1;
 									end_keyframe_positions = df_position;
@@ -440,7 +435,7 @@ int FlvTag::parse_meta_body() {
 									}
 								}
 							} else {
-								if (df_position > end)
+								if (df_position > end && end_keyframe_times > 0)
 									break;
 								end_keyframe_len += 1;
 								end_keyframe_positions = df_position;
@@ -479,10 +474,10 @@ int FlvTag::parse_meta_body() {
 			lasttimestamp = end_keyframe_times;
 		}
 
-//		TSDebug(PLUGIN_NAME,"start_keyframe=%d,%lf end_keyframe=%d,%lf",start_keyframe_len,start_keyframe_positions
-//				,end_keyframe_len,end_keyframe_positions);
-//		TSDebug(PLUGIN_NAME,"lastkeyframe location=%lf, timestamp=%lf lasttimestamp=%lf, end_keyframe_len=%d",lastkeyframelocation,lastkeyframetimestamp
-//				,lasttimestamp,end_keyframe_len);
+		TSDebug(PLUGIN_NAME,"start_keyframe=%d,%lf end_keyframe=%d,%lf",start_keyframe_len,start_keyframe_positions
+				,end_keyframe_len,end_keyframe_positions);
+		TSDebug(PLUGIN_NAME,"lastkeyframe location=%lf, timestamp=%lf lasttimestamp=%lf, end_keyframe_len=%d",lastkeyframelocation,lastkeyframetimestamp
+				,lasttimestamp,end_keyframe_len);
 
 		this->real_end_keyframe_positions = this->end;
 		//计算delete 的关键帧大小
@@ -536,18 +531,18 @@ int FlvTag::process_medial_body() {
 			return 0;
 
 		start_dup_size += sz;
-//        TSDebug(PLUGIN_NAME,"[process_medial_body] start_duration_file_size=%lu,start_dup_size=%lu",start_duration_file_size,start_dup_size);
+        TSDebug(PLUGIN_NAME,"[process_medial_body] start_duration_file_size=%lu,start_dup_size=%lu",start_duration_file_size,start_dup_size);
 		timestamp = flv_tag_get_timestamp(tag);
 
 		if (tag.type == FLV_TAG_TYPE_VIDEO) {
-//			TSDebug(PLUGIN_NAME,"[process_medial_body] FLV_TAG_TYPE_VIDEO");
-//			TSDebug(PLUGIN_NAME,"[process_medial_body] start_dup_size=%lu, start=%lu",start_dup_size,start);
+			TSDebug(PLUGIN_NAME,"[process_medial_body] FLV_TAG_TYPE_VIDEO");
+			TSDebug(PLUGIN_NAME,"[process_medial_body] start_dup_size=%lu, start=%lu",start_dup_size,start);
 			if (start_dup_size <= start) {
 				start_duration_time = timestamp; //ms
 			} else {
 
 				TSDebug(PLUGIN_NAME, "process_medial_body success!!! tag_pos= %ld,start_duration_file_size=%lu",tag_pos, start_duration_file_size);
-//				return 1;
+                //return 1;
 				this->current_handler = &FlvTag::update_flv_meta_data;
 				return update_flv_meta_data();
 			}
@@ -576,10 +571,10 @@ int FlvTag::process_medial_body() {
  */
 int FlvTag::update_flv_meta_data() {
     this->start_duration_time = this->start_duration_time / 1000;
-//    this->start_duration_file_size += this->delete_meta_size;
+//    ---this->start_duration_file_size += this->delete_meta_size;
     TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start_duration_time=%lf", this->start_duration_time);
     if(this->start <= 0 && this->end > 0) {
-//        TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start <= 0 && this->end > 0");
+        TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start <= 0 && this->end > 0");
         this->start_duration_time = 0;
         this->start_duration_video_size = 0;
         this->start_duration_audio_size = 0;
@@ -587,7 +582,7 @@ int FlvTag::update_flv_meta_data() {
         this->filesize = this->lastkeyframelocation;
         //keyframes 在遍历过程中删除
     } else if (this->start > 0 && this->end <= 0) {
-//        TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start > 0 && this->end <= 0");
+        TSDebug(PLUGIN_NAME, "[update_flv_meta_data] this->start > 0 && this->end <= 0");
         this->lastkeyframelocation = this->lastkeyframelocation - this->start_duration_file_size;
         this->lastkeyframetimestamp = this->lastkeyframetimestamp - this->start_duration_time;
         this->lasttimestamp = this->lastkeyframetimestamp;
@@ -611,24 +606,21 @@ int FlvTag::update_flv_meta_data() {
         return -1;
     }
 
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_file_size=%lu",this->start_duration_file_size);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_time=%lf",this->start_duration_time);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_video_size=%lu",this->start_duration_video_size);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_audio_size=%lu",this->start_duration_audio_size);
-//
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lastkeyframelocation=%lf",this->lastkeyframelocation);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lastkeyframetimestamp=%lf",this->lastkeyframetimestamp);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lasttimestamp=%lf",this->lasttimestamp);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] duration=%lf",this->duration);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] filesize=%lf",this->filesize);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] videosize=%lf",this->videosize);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] audiosize=%lf",this->audiosize);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] datasize=%lf",this->datasize);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_file_size=%lu",this->start_duration_file_size);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_time=%lf",this->start_duration_time);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_video_size=%lu",this->start_duration_video_size);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] start_duration_audio_size=%lu",this->start_duration_audio_size);
+
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lastkeyframelocation=%lf",this->lastkeyframelocation);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lastkeyframetimestamp=%lf",this->lastkeyframetimestamp);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] lasttimestamp=%lf",this->lasttimestamp);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] duration=%lf",this->duration);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] filesize=%lf",this->filesize);
 
 
     int64_t avail;
     avail = TSIOBufferReaderAvail(meta_reader);
-//    TSDebug(PLUGIN_NAME, "update_flv_meta_data meta data length=%ld",avail);
+    TSDebug(PLUGIN_NAME, "update_flv_meta_data meta data length=%ld",avail);
 
     clear_copy_meta_buffer();
     create_copy_meta_buffer();
@@ -653,7 +645,7 @@ int FlvTag::update_flv_meta_data() {
     TSIOBufferReaderConsume(copy_meta_reader, flv_tag_size);
 
     body_length = flv_tag_get_body_length(tag);
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] tag header=%u, tag body=%u",flv_tag_size,body_length);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] tag header=%u, tag body=%u",flv_tag_size,body_length);
 
     buf = (byte *)TSmalloc(sizeof(byte) * body_length);
     memset(buf, 0, body_length);
@@ -715,28 +707,28 @@ int FlvTag::update_flv_meta_data() {
                         get_amf_type_string(type));
             }
         }
-//
-//        /* lastkeyframetimestamp: (number) */
-//        if (!strcmp((char*) name, "lastkeyframetimestamp")) {
-//            if (type == AMF_TYPE_NUMBER) {
-//                amf_number_set_value(data,double2int(this->lastkeyframetimestamp));
-//            } else {
-//                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframetimestamp: expected %s, got %s\n",
-//                        get_amf_type_string(AMF_TYPE_NUMBER),
-//                        get_amf_type_string(type));
-//            }
-//        }
 
-//        /* lastkeyframelocation: (number) */
-//        if (!strcmp((char*) name, "lastkeyframelocation")) {
-//            if (type == AMF_TYPE_NUMBER) {
-//                amf_number_set_value(data,double2int(this->lastkeyframelocation));
-//            } else {
-//                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframelocation: expected %s, got %s\n",
-//                        get_amf_type_string(AMF_TYPE_NUMBER),
-//                        get_amf_type_string(type));
-//            }
-//        }
+        /* lastkeyframetimestamp: (number) */
+        if (!strcmp((char*) name, "lastkeyframetimestamp")) {
+            if (type == AMF_TYPE_NUMBER) {
+                amf_number_set_value(data,double2int(this->lastkeyframetimestamp));
+            } else {
+                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframetimestamp: expected %s, got %s\n",
+                        get_amf_type_string(AMF_TYPE_NUMBER),
+                        get_amf_type_string(type));
+            }
+        }
+
+        /* lastkeyframelocation: (number) */
+        if (!strcmp((char*) name, "lastkeyframelocation")) {
+            if (type == AMF_TYPE_NUMBER) {
+                amf_number_set_value(data,double2int(this->lastkeyframelocation));
+            } else {
+                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframelocation: expected %s, got %s\n",
+                        get_amf_type_string(AMF_TYPE_NUMBER),
+                        get_amf_type_string(type));
+            }
+        }
 
         /* filesize: (number) */
         if (!strcmp((char*) name, "filesize")) {
@@ -762,7 +754,7 @@ int FlvTag::update_flv_meta_data() {
     uint32 meta_data_length = amf_data_size(on_metadata_name) + amf_data_size(on_metadata);
     prev_tag_size = flv_tag_size + meta_data_length;
 
-//    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] prev_tag_size=%lu",prev_tag_size);
+    TSDebug(PLUGIN_NAME, "[update_flv_meta_data] prev_tag_size=%lu",prev_tag_size);
 
     tag.body_length = uint32_to_uint24_be(meta_data_length);
 
@@ -779,6 +771,9 @@ int FlvTag::update_flv_meta_data() {
     /* first "previous tag size" */
     uint32_be size = swap_uint32(prev_tag_size);
     TSIOBufferWrite(modify_meta_buffer, &size,  (int64_t)sizeof(uint32_be));
+
+    //将非meta的数据copy
+    TSIOBufferCopy(modify_meta_buffer, copy_meta_reader,TSIOBufferReaderAvail(copy_meta_reader) , 0);
 
     amf_data_free(on_metadata);
     amf_data_free(on_metadata_name);

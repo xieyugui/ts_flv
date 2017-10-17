@@ -391,7 +391,7 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
     FlvContext *fc;
     TSMLoc ae_field, range_field;
     TSCont contp;
-
+    bool is_find;
 
 
     method = TSHttpHdrMethodGet(rri->requestBufp, rri->requestHdrp, &method_len);
@@ -410,6 +410,7 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
 
     start = 0;
     end = 0;
+    is_find = false;
     query = TSUrlHttpQueryGet(rri->requestBufp, rri->requestUrl, &query_len);
     TSDebug(PLUGIN_NAME, "TSRemapDoRemap query=%s!",query);
     if(!query) {
@@ -418,18 +419,23 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
     }
 
     f_start = strcasestr(query, "start=");
-    if (!f_start) {
-        TSDebug(PLUGIN_NAME, "TSRemapDoRemap not found start=");
-        return TSREMAP_NO_REMAP;
+    if (f_start) {
+        start = strtoul(f_start + 6, NULL, 10);
+        is_find = true;
     }
-    start = strtoul(f_start + 6, NULL, 10);
 
-    f_end = strcasestr(query, "&end=");
+    f_end = strcasestr(query, "end=");
 
     if(f_end) {
-        end = strtoul(f_end + 5, NULL, 10);
-        TSDebug(PLUGIN_NAME, "TSRemapDoRemap found end=%lu",end);
+        end = strtoul(f_end + 4, NULL, 10);
+        is_find = true;
     }
+
+    if (!is_find) {
+        TSDebug(PLUGIN_NAME, "TSRemapDoRemap not found start= or end=");
+        return TSREMAP_NO_REMAP;
+    }
+
 
     TSDebug(PLUGIN_NAME, "TSRemapDoRemap start=%lu, end=%lu", start, end);
     if (start < 0 || end < 0 || (start > 0 && end > 0 && start >= end)) {
@@ -442,13 +448,11 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
         return TSREMAP_NO_REMAP;
     }
 
-    // 如果是206 就直接跳过
+    //remove range
     range_field = TSMimeHdrFieldFind(rri->requestBufp, rri->requestHdrp, TS_MIME_FIELD_RANGE, TS_MIME_LEN_RANGE);
     if (range_field) {
-        TSDebug(PLUGIN_NAME, "TSRemapDoRemap 206 request!");
-        return TSREMAP_NO_REMAP;
-//        TSMimeHdrFieldDestroy(rri->requestBufp, rri->requestHdrp, range_field);
-//        TSHandleMLocRelease(rri->requestBufp, rri->requestHdrp, range_field);
+        TSMimeHdrFieldDestroy(rri->requestBufp, rri->requestHdrp, range_field);
+        TSHandleMLocRelease(rri->requestBufp, rri->requestHdrp, range_field);
     }
 
     // remove Accept-Encoding

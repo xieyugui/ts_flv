@@ -696,50 +696,50 @@ int FlvTag::update_flv_meta_data() {
                         get_amf_type_string(type));
             }
         }
-
-        /* lasttimestamp: (number) */
-        if (!strcmp((char*) name, "lasttimestamp")) {
-            if (type == AMF_TYPE_NUMBER) {
-                amf_number_set_value(data,double2int(this->lasttimestamp));
-            } else {
-                TSDebug(PLUGIN_NAME,"invalid type for lasttimestamp: expected %s, got %s\n",
-                        get_amf_type_string(AMF_TYPE_NUMBER),
-                        get_amf_type_string(type));
-            }
-        }
-
-        /* lastkeyframetimestamp: (number) */
-        if (!strcmp((char*) name, "lastkeyframetimestamp")) {
-            if (type == AMF_TYPE_NUMBER) {
-                amf_number_set_value(data,double2int(this->lastkeyframetimestamp));
-            } else {
-                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframetimestamp: expected %s, got %s\n",
-                        get_amf_type_string(AMF_TYPE_NUMBER),
-                        get_amf_type_string(type));
-            }
-        }
-
-        /* lastkeyframelocation: (number) */
-        if (!strcmp((char*) name, "lastkeyframelocation")) {
-            if (type == AMF_TYPE_NUMBER) {
-                amf_number_set_value(data,double2int(this->lastkeyframelocation));
-            } else {
-                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframelocation: expected %s, got %s\n",
-                        get_amf_type_string(AMF_TYPE_NUMBER),
-                        get_amf_type_string(type));
-            }
-        }
-
-        /* filesize: (number) */
-        if (!strcmp((char*) name, "filesize")) {
-            if (type == AMF_TYPE_NUMBER) {
-                amf_number_set_value(data,double2int(this->filesize));
-            } else {
-                TSDebug(PLUGIN_NAME,"invalid type for filesize: expected %s, got %s\n",
-                        get_amf_type_string(AMF_TYPE_NUMBER),
-                        get_amf_type_string(type));
-            }
-        }
+//
+//        /* lasttimestamp: (number) */
+//        if (!strcmp((char*) name, "lasttimestamp")) {
+//            if (type == AMF_TYPE_NUMBER) {
+//                amf_number_set_value(data,double2int(this->lasttimestamp));
+//            } else {
+//                TSDebug(PLUGIN_NAME,"invalid type for lasttimestamp: expected %s, got %s\n",
+//                        get_amf_type_string(AMF_TYPE_NUMBER),
+//                        get_amf_type_string(type));
+//            }
+//        }
+//
+//        /* lastkeyframetimestamp: (number) */
+//        if (!strcmp((char*) name, "lastkeyframetimestamp")) {
+//            if (type == AMF_TYPE_NUMBER) {
+//                amf_number_set_value(data,double2int(this->lastkeyframetimestamp));
+//            } else {
+//                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframetimestamp: expected %s, got %s\n",
+//                        get_amf_type_string(AMF_TYPE_NUMBER),
+//                        get_amf_type_string(type));
+//            }
+//        }
+//
+//        /* lastkeyframelocation: (number) */
+//        if (!strcmp((char*) name, "lastkeyframelocation")) {
+//            if (type == AMF_TYPE_NUMBER) {
+//                amf_number_set_value(data,double2int(this->lastkeyframelocation));
+//            } else {
+//                TSDebug(PLUGIN_NAME,"invalid type for lastkeyframelocation: expected %s, got %s\n",
+//                        get_amf_type_string(AMF_TYPE_NUMBER),
+//                        get_amf_type_string(type));
+//            }
+//        }
+//
+//        /* filesize: (number) */
+//        if (!strcmp((char*) name, "filesize")) {
+//            if (type == AMF_TYPE_NUMBER) {
+//                amf_number_set_value(data,double2int(this->filesize));
+//            } else {
+//                TSDebug(PLUGIN_NAME,"invalid type for filesize: expected %s, got %s\n",
+//                        get_amf_type_string(AMF_TYPE_NUMBER),
+//                        get_amf_type_string(type));
+//            }
+//        }
 
     }// end for
 

@@ -384,10 +384,10 @@ void TSRemapDeleteInstance(void *instance) {
 TSRemapStatus
 TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *rri)
 {
-    const char *method, *path, *query;
+    const char *method, *path, *query, *range, *range_separator;
     const char *f_start, *f_end;
-    int method_len, path_len, query_len;
-    uint64_t start, end;
+    int method_len, path_len, query_len, range_len;
+    uint64_t start, end, r_start, r_end;
     FlvContext *fc;
     TSMLoc ae_field, range_field;
     TSCont contp;
@@ -409,7 +409,9 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
     }
 
     start = 0;
+    r_start = 0;
     end = 0;
+    r_end = 0;
     is_find = false;
     query = TSUrlHttpQueryGet(rri->requestBufp, rri->requestUrl, &query_len);
     TSDebug(PLUGIN_NAME, "TSRemapDoRemap query=%s!",query);
@@ -436,25 +438,43 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
         return TSREMAP_NO_REMAP;
     }
 
-
-    TSDebug(PLUGIN_NAME, "TSRemapDoRemap start=%lu, end=%lu", start, end);
-    if (start < 0 || end < 0 || (start > 0 && end > 0 && start >= end)) {
-        return TSREMAP_NO_REMAP;
-    }
-
-
     //remove query
     if (TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, "", -1) == TS_ERROR) {
         return TSREMAP_NO_REMAP;
     }
 
-    //remove range
+    //如果有range 就根据range 大小来匹配
+    //request Range: bytes=500-999, response Content-Range: bytes 21010-47021/47022
+    // remove Range
     range_field = TSMimeHdrFieldFind(rri->requestBufp, rri->requestHdrp, TS_MIME_FIELD_RANGE, TS_MIME_LEN_RANGE);
     if (range_field) {
+//        range = TSMimeHdrFieldValueStringGet(rri->requestBufp, rri->requestHdrp,range_field, -1, &range_len);
+//        size_t b_len = sizeof("bytes=") - 1;
+//        if (range && (strncasecmp(range, "bytes=", b_len) == 0)) {
+//            //get range value
+//            r_start = (uint64_t) strtol(range + b_len, NULL, 10);
+//            range_separator = strchr(range, '-');
+//            if (range_separator) {
+//                r_end = (uint64_t) strtol(range_separator + 1, NULL, 10);
+//            }
+//        }
+//
+//        if (r_start > start ) {
+//            start = r_start;
+//        }
+//
+//        if (r_end > 0) {
+//            end = r_end;
+//        }
+
         TSDebug(PLUGIN_NAME, "TSRemapDoRemap range request");
+        TSMimeHdrFieldDestroy(rri->requestBufp, rri->requestHdrp, range_field);
+        TSHandleMLocRelease(rri->requestBufp, rri->requestHdrp, range_field);
+    }
+
+    TSDebug(PLUGIN_NAME, "TSRemapDoRemap start=%lu, end=%lu", start, end);
+    if (start < 0 || end < 0 || (start > 0 && end > 0 && start >= end)) {
         return TSREMAP_NO_REMAP;
-//        TSMimeHdrFieldDestroy(rri->requestBufp, rri->requestHdrp, range_field);
-//        TSHandleMLocRelease(rri->requestBufp, rri->requestHdrp, range_field);
     }
 
     // remove Accept-Encoding

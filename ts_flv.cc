@@ -438,10 +438,10 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
         return TSREMAP_NO_REMAP;
     }
 
-    //remove query
-    if (TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, "", -1) == TS_ERROR) {
-        return TSREMAP_NO_REMAP;
-    }
+//    //remove query
+//    if (TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, "", -1) == TS_ERROR) {
+//        return TSREMAP_NO_REMAP;
+//    }
 
     //如果有range 就根据range 大小来匹配
     //request Range: bytes=500-999, response Content-Range: bytes 21010-47021/47022

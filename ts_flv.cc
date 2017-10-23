@@ -382,17 +382,18 @@ void TSRemapDeleteInstance(void *instance) {
     return;
 }
 
+
 TSRemapStatus
 TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *rri)
 {
-    const char *method, *path, *query, *range, *range_separator;
+    const char *method, *path, *query;
     const char *f_start, *f_end;
-    int method_len, path_len, query_len, range_len;
-    uint64_t start, end, r_start, r_end;
+    int method_len, path_len, query_len;
+    uint64_t start, end;
     FlvContext *fc;
     TSMLoc ae_field, range_field;
     TSCont contp;
-    bool is_find;
+    bool start_find, end_find;
 
 
     method = TSHttpHdrMethodGet(rri->requestBufp, rri->requestHdrp, &method_len);
@@ -410,73 +411,89 @@ TSRemapDoRemap(void * /* ih ATS_UNUSED */, TSHttpTxn txnp, TSRemapRequestInfo *r
     }
 
     start = 0;
-    r_start = 0;
     end = 0;
-    r_end = 0;
-    is_find = false;
+    start_find = false;
+    end_find = false;
     query = TSUrlHttpQueryGet(rri->requestBufp, rri->requestUrl, &query_len);
-    TSDebug(PLUGIN_NAME, "TSRemapDoRemap query=%s!",query);
-    if(!query) {
-        TSDebug(PLUGIN_NAME, "TSRemapDoRemap query is null!");
+    TSDebug(PLUGIN_NAME, "TSRemapDoRemap query=%.*s!",query_len,query);
+    if(!query || query_len > 1024) {
+        TSDebug(PLUGIN_NAME, "TSRemapDoRemap query is null or len > 1024!");
         return TSREMAP_NO_REMAP;
     }
+    char *startptr, *endptr;
 
-    f_start = strcasestr(query, "start=");
-    if (f_start) {
-        start = strtoul(f_start + 6, NULL, 10);
-        is_find = true;
+    char no_start_buf[1025], no_end_buf[1025];
+    const char *end_static_query;
+    int buf_len, end_buf_len;
+    f_start = strcasestr(query, "&start=");
+    if(f_start) {
+        start = strtoul(f_start + 7, &startptr, 10);
+        buf_len = sprintf(no_start_buf, "%.*s%.*s", f_start-query, query, query_len - (startptr-query),startptr);
+        start_find = true;
+    } else {
+        f_start = strcasestr(query, "start=");
+        if (f_start) {
+            start = strtoul(f_start + 6, &startptr, 10);
+            buf_len = sprintf(no_start_buf, "%.*s%.*s", f_start-query, query, query_len - (startptr-query),startptr);
+            start_find = true;
+        }
     }
 
-    f_end = strcasestr(query, "end=");
+    if(start_find) {
+        end_static_query = no_start_buf;
+    } else {
+        end_static_query = query;
+        buf_len = query_len;
+    }
 
+
+    f_end = strcasestr(end_static_query, "&end=");
     if(f_end) {
-        end = strtoul(f_end + 4, NULL, 10);
-        is_find = true;
+        end = strtoul(f_end + 5, &endptr, 10);
+        end_buf_len = sprintf(no_end_buf, "%.*s%.*s", f_end-end_static_query, end_static_query, buf_len - (endptr-end_static_query),endptr);
+        end_find = true;
+    } else {
+        f_end = strcasestr(query, "end=");
+        if (f_end) {
+            end = strtoul(f_end + 4, &endptr, 10);
+            end_buf_len = sprintf(no_end_buf, "%.*s%.*s", f_end-end_static_query, end_static_query, buf_len - (endptr-end_static_query),endptr);
+            end_find = true;
+        }
     }
 
-    if (!is_find) {
+
+    if (!start_find && !end_find) {
         TSDebug(PLUGIN_NAME, "TSRemapDoRemap not found start= or end=");
         return TSREMAP_NO_REMAP;
     }
 
-//    //remove query
-//    if (TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, "", -1) == TS_ERROR) {
-//        return TSREMAP_NO_REMAP;
-//    }
+    if (end_find) {
+        TSDebug(PLUGIN_NAME, "TSRemapDoRemap end_buf_len=%d, no_end_buf=%s!", end_buf_len, no_end_buf);
+        TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, no_end_buf, end_buf_len);
+
+    } else if(start_find) {
+        TSDebug(PLUGIN_NAME, "TSRemapDoRemap buf_len = %ld, no_start_buf=%s!",buf_len, no_start_buf);
+        TSUrlHttpQuerySet(rri->requestBufp, rri->requestUrl, no_start_buf, buf_len);
+    }
+
 
     //如果有range 就根据range 大小来匹配
     //request Range: bytes=500-999, response Content-Range: bytes 21010-47021/47022
     // remove Range
     range_field = TSMimeHdrFieldFind(rri->requestBufp, rri->requestHdrp, TS_MIME_FIELD_RANGE, TS_MIME_LEN_RANGE);
     if (range_field) {
-//        range = TSMimeHdrFieldValueStringGet(rri->requestBufp, rri->requestHdrp,range_field, -1, &range_len);
-//        size_t b_len = sizeof("bytes=") - 1;
-//        if (range && (strncasecmp(range, "bytes=", b_len) == 0)) {
-//            //get range value
-//            r_start = (uint64_t) strtol(range + b_len, NULL, 10);
-//            range_separator = strchr(range, '-');
-//            if (range_separator) {
-//                r_end = (uint64_t) strtol(range_separator + 1, NULL, 10);
-//            }
-//        }
-//
-//        if (r_start > start ) {
-//            start = r_start;
-//        }
-//
-//        if (r_end > 0) {
-//            end = r_end;
-//        }
 
         TSDebug(PLUGIN_NAME, "TSRemapDoRemap range request");
         TSMimeHdrFieldDestroy(rri->requestBufp, rri->requestHdrp, range_field);
         TSHandleMLocRelease(rri->requestBufp, rri->requestHdrp, range_field);
     }
 
+
     TSDebug(PLUGIN_NAME, "TSRemapDoRemap start=%lu, end=%lu", start, end);
     if (start < 0 || end < 0 || (start > 0 && end > 0 && start >= end)) {
         return TSREMAP_NO_REMAP;
     }
+
 
     // remove Accept-Encoding
     ae_field = TSMimeHdrFieldFind(rri->requestBufp, rri->requestHdrp, TS_MIME_FIELD_ACCEPT_ENCODING, TS_MIME_LEN_ACCEPT_ENCODING);

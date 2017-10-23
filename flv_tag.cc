@@ -376,7 +376,6 @@ int FlvTag::parse_meta_body() {
 
 						number64 f_time,f_position;
 						double df_time ,df_position;
-
 						while (ft_node != NULL && ff_node != NULL) {
 							f_time =0;
 							f_position = 0;
@@ -410,33 +409,28 @@ int FlvTag::parse_meta_body() {
 								TSDebug(PLUGIN_NAME,"[parse_meta_body] start > 0");
 								if (end > 0) {
 									TSDebug(PLUGIN_NAME,"[parse_meta_body] start > 0    end > 0");
-									if (df_position < start)
-										start_keyframe_len += 1;
-									else if(df_position >= start and df_position <= end) {
-										if (start_keyframe_positions <= 0) {
-											start_keyframe_len += 1;
-											start_keyframe_positions = df_position;
-											start_keyframe_times = df_time;
-										}
-									} else {
-                                        if(end_keyframe_times > 0)
-										    break;
-									}
+									if (df_position < start || df_time <= 0) {
+                                        start_keyframe_len += 1;
+                                        start_keyframe_positions = df_position;
+                                        start_keyframe_times = df_time;
+                                    }
+                                    if (df_position > end && end_keyframe_times > 0)
+                                        break;
 									end_keyframe_len += 1;
 									end_keyframe_positions = df_position;
 									end_keyframe_times = df_time;
+
 								} else {
 									TSDebug(PLUGIN_NAME,"[parse_meta_body] start > 0 else");
+                                    if (df_position > start && start_keyframe_times > 0)
+                                        break;
 									start_keyframe_len += 1;
-									if (df_position >= start) {
-										start_keyframe_positions = df_position;
-										start_keyframe_times = df_time;
-										break;
-									}
+                                    start_keyframe_positions = df_position;
+                                    start_keyframe_times = df_time;
 								}
 							} else {
-								if (df_position > end && end_keyframe_times > 0)
-									break;
+                                if (df_position > end && end_keyframe_times > 0)
+                                    break;
 								end_keyframe_len += 1;
 								end_keyframe_positions = df_position;
 								end_keyframe_times = df_time;
@@ -467,7 +461,9 @@ int FlvTag::parse_meta_body() {
 		this->end_keyframe_positions = 0;
 	} else {
 		this->start = (uint64_t)this->start_keyframe_positions;
-		this->end = (uint64_t)this->end_keyframe_positions;
+
+        this->end = (uint64_t)this->end_keyframe_positions;
+
 		if (this->end > 0) {
 			lastkeyframelocation = end_keyframe_positions;
 			lastkeyframetimestamp = end_keyframe_times;

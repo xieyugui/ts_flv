@@ -218,6 +218,7 @@ flv_add_transform(FlvContext *fc, TSHttpTxn txnp)
     ftc = new FlvTransformContext(fc->start, fc->end, fc->cl);
     TSDebug(PLUGIN_NAME, "[flv_add_transform] start=%lu, end=%lu, cl=%lu",fc->start, fc->end, fc->cl);
 
+    //只缓存transform之前的数据，不缓存transform之后的数据
     TSHttpTxnUntransformedRespCache(txnp, 1);
     TSHttpTxnTransformedRespCache(txnp, 0);
 

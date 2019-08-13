@@ -1,7 +1,7 @@
 /*
 * @author:    daemon.xie
 * @license:   Apache Licence
-* @contact:   xieyugui@migu.cn
+* @contact:   xieyugui
 * @software:  CLion
 * @file:      flv_tag.cc
 * @date:      2017/9/11 上午10:54
